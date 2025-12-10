@@ -102,7 +102,20 @@ export const useOrders = () => {
         }
     };
 
-    return { orders, loading, error, loadMore, hasMore, refreshOrders, createOrder, updateOrderStatus };
+    const deleteOrder = async (orderId) => {
+        try {
+            if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
+            await dbService.deleteDocument('orders', orderId);
+            refreshOrders();
+            return true;
+        } catch (err) {
+            console.error('Erro ao deletar pedido:', err);
+            setError(err.message);
+            throw err;
+        }
+    };
+
+    return { orders, loading, error, loadMore, hasMore, refreshOrders, createOrder, updateOrderStatus, deleteOrder };
 };
 
 export default useOrders;
