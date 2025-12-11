@@ -48,10 +48,10 @@ export const ProductsPage = () => {
     const handleEditClick = (product) => {
         setEditingProduct(product);
         setFormData({
-            name: product.name,
+            name: product.name || '',
             description: product.description || '',
-            category: product.category,
-            price: product.price,
+            category: product.category || '',
+            price: product.price || '',
             cost: product.cost || ''
         });
         setShowModal(true);

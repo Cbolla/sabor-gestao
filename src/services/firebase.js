@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
@@ -17,7 +17,14 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-const db = getFirestore(app);
+
+// Initialize Firestore with Persistence (New Syntax)
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    })
+});
+
 const storage = getStorage(app);
 const auth = getAuth(app);
 

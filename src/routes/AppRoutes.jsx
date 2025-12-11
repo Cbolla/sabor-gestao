@@ -19,6 +19,7 @@ const AddExpensePage = lazy(() => import('../pages/finance/AddExpensePage'));
 const CustomersPage = lazy(() => import('../pages/customers/CustomersPage'));
 const ProductsPage = lazy(() => import('../pages/products/ProductsPage'));
 const OrdersPage = lazy(() => import('../pages/orders/OrdersPage'));
+const ReportsPage = lazy(() => import('../pages/reports/ReportsPage')); // Import added
 const KitchenPage = lazy(() => import('../pages/kitchen/KitchenPage'));
 const DeliveryPage = lazy(() => import('../pages/delivery/DeliveryPage'));
 import { MigrationPage } from '../pages/MigrationPage'; // Not lazy for now
@@ -56,6 +57,9 @@ export const AppRoutes = () => {
 
                     {/* Orders routes */}
                     <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
+
+                    {/* Reports routes */}
+                    <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
 
                     {/* Kitchen routes */}
                     <Route path="/kitchen" element={<ProtectedRoute><KitchenPage /></ProtectedRoute>} />

@@ -51,7 +51,14 @@ export const CustomersPage = () => {
             cpf: customer.cpf || '',
             birthDate: customer.birthDate || '',
             notes: customer.notes || '',
-            address: customer.address || { street: '', number: '', neighborhood: '', city: '', state: '', zipCode: '' }
+            address: {
+                street: customer.address?.street || '',
+                number: customer.address?.number || '',
+                neighborhood: customer.address?.neighborhood || '',
+                city: customer.address?.city || '',
+                state: customer.address?.state || '',
+                zipCode: customer.address?.zipCode || ''
+            }
         });
         setShowModal(true);
     };

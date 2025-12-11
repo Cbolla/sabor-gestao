@@ -1,11 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     DollarSign,
     ShoppingBag,
     ChefHat,
-    Menu
+    TrendingUp, // Import
+    Menu,
+    Package,
+    Users,
+    Truck,
+    ArrowRight,
+    ArrowLeft
 } from 'lucide-react';
 
 const navStyles = {
@@ -35,52 +41,48 @@ const navStyles = {
         transition: 'all 0.2s ease',
         borderRadius: 'var(--radius-md)',
         WebkitTapHighlightColor: 'transparent',
+        flex: 1,
     },
     icon: {
         fontSize: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     label: {
         fontSize: 'var(--font-size-xs)',
         fontWeight: 'var(--font-weight-medium)',
+        whiteSpace: 'nowrap',
     },
+    toggleItem: {
+        color: 'var(--color-primary)',
+        fontWeight: 'bold',
+    }
 };
 
 export const BottomNav = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [showSecondary, setShowSecondary] = useState(false);
 
-    const navItems = [
-        {
-            path: '/',
-            icon: <LayoutDashboard size={24} />,
-            label: 'Início',
-        },
-        {
-            path: '/finance',
-            icon: <DollarSign size={24} />,
-            label: 'Finanças',
-        },
-        {
-            path: '/orders',
-            icon: <ShoppingBag size={24} />,
-            label: 'Pedidos',
-        },
-        {
-            path: '/kitchen',
-            icon: <ChefHat size={24} />,
-            label: 'Cozinha',
-        },
-        {
-            path: '/menu',
-            icon: <Menu size={24} />,
-            label: 'Menu',
-        },
+    const primaryItems = [
+        { path: '/', icon: <LayoutDashboard size={24} />, label: 'Início' },
+        { path: '/finance', icon: <DollarSign size={24} />, label: 'Finanças' },
+        { path: '/orders', icon: <ShoppingBag size={24} />, label: 'Pedidos' },
+        { path: '/products', icon: <Package size={24} />, label: 'Estoque' },
     ];
 
+    const secondaryItems = [
+        { path: '/kitchen', icon: <ChefHat size={24} />, label: 'Cozinha' },
+        { path: '/deliveries', icon: <Truck size={24} />, label: 'Entregas' },
+        { path: '/reports', icon: <TrendingUp size={24} />, label: 'Relatórios' }, // New
+        { path: '/customers', icon: <Users size={24} />, label: 'Clientes' },
+    ];
+
+    const currentItems = showSecondary ? secondaryItems : primaryItems;
+
     const isActive = (path) => {
-        if (path === '/') {
-            return location.pathname === '/';
-        }
+        if (path === '/') return location.pathname === '/';
         return location.pathname.startsWith(path);
     };
 
@@ -95,7 +97,18 @@ export const BottomNav = () => {
 
     return (
         <nav style={navStyles.container}>
-            {navItems.map((item) => (
+            {/* Toggle Button LEFT (only if secondary) */}
+            {showSecondary && (
+                <div
+                    style={{ ...navStyles.item, ...navStyles.toggleItem }}
+                    onClick={() => setShowSecondary(false)}
+                >
+                    <div style={navStyles.icon}><ArrowLeft size={24} /></div>
+                    <span style={navStyles.label}>Voltar</span>
+                </div>
+            )}
+
+            {currentItems.map((item) => (
                 <div
                     key={item.path}
                     style={getItemStyle(item.path)}
@@ -105,6 +118,17 @@ export const BottomNav = () => {
                     <span style={navStyles.label}>{item.label}</span>
                 </div>
             ))}
+
+            {/* Toggle Button RIGHT (only if primary) */}
+            {!showSecondary && (
+                <div
+                    style={{ ...navStyles.item, ...navStyles.toggleItem }}
+                    onClick={() => setShowSecondary(true)}
+                >
+                    <div style={navStyles.icon}><ArrowRight size={24} /></div>
+                    <span style={navStyles.label}>Mais</span>
+                </div>
+            )}
         </nav>
     );
 };

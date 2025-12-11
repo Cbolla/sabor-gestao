@@ -145,11 +145,20 @@ export const OrdersPage = () => {
         }
 
         // Populate form data
+        let formattedDate = '';
+        if (order.deliveryDate) {
+            if (order.deliveryDate.seconds) { // Firestore Timestamp
+                formattedDate = new Date(order.deliveryDate.seconds * 1000).toISOString().split('T')[0];
+            } else {
+                formattedDate = new Date(order.deliveryDate).toISOString().split('T')[0];
+            }
+        }
+
         setFormData({
             customerName: initialCustomerName,
             customerPhone: order.customerPhone || '',
-            deliveryDate: order.deliveryDate ? new Date(order.deliveryDate).toISOString().split('T')[0] : '',
-            total: order.total.toFixed(2),
+            deliveryDate: formattedDate,
+            total: order.total?.toFixed(2) || '0.00',
             advancePayment: order.advancePayment?.toFixed(2) || '',
             notes: order.notes || ''
         });
