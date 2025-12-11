@@ -95,13 +95,44 @@ export const ProductsPage = () => {
                                                 {formatCurrency(product.price)}
                                             </div>
                                         </div>
-                                        {product.cost > 0 && <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Custo</div>
-                                            <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)' }}>
-                                                {formatCurrency(product.cost)}
-                                            </div>
-                                        </div>}
+                                        {product.cost > 0 && (
+                                            <>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Custo</div>
+                                                    <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>
+                                                        {formatCurrency(product.cost)}
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Lucro</div>
+                                                    <div style={{ 
+                                                        fontSize: 'var(--font-size-base)', 
+                                                        fontWeight: 'var(--font-weight-bold)',
+                                                        color: (product.price - product.cost) >= 0 ? 'var(--color-primary)' : 'var(--color-danger)'
+                                                    }}>
+                                                        {formatCurrency(product.price - product.cost)}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
+                                    {product.cost > 0 && product.price > 0 && (
+                                        <div style={{ 
+                                            marginTop: 'var(--spacing-xs)', 
+                                            padding: 'var(--spacing-xs) var(--spacing-sm)', 
+                                            backgroundColor: 'var(--color-surface-hover)', 
+                                            borderRadius: 'var(--radius-md)',
+                                            fontSize: 'var(--font-size-sm)',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}>
+                                            <span style={{ color: 'var(--color-text-secondary)' }}>Margem:</span>
+                                            <span style={{ fontWeight: 'var(--font-weight-bold)', color: 'var(--color-text)' }}>
+                                                {((product.price - product.cost) / product.price * 100).toFixed(0)}%
+                                            </span>
+                                        </div>
+                                    )}
                                 </CardBody>
                             </Card>
                         ))}

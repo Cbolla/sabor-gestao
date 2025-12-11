@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, ShoppingBag, Calendar, User, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, ShoppingBag, Calendar, User, Trash2, X } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody, CardFooter } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -8,8 +8,10 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Modal } from '../../components/common/Modal';
 import { Input } from '../../components/common/Input';
+import { Select } from '../../components/common/Select';
 import { useOrders } from '../../hooks/useOrders';
 import { useCustomers } from '../../hooks/useCustomers';
+import { useProducts } from '../../hooks/useProducts'; // Import useProducts
 import { formatCurrency } from '../../utils/currencyUtils';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -19,11 +21,15 @@ const pageStyles = {
     filterBar: { display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)', overflowX: 'auto' },
     filterButton: { padding: 'var(--spacing-sm) var(--spacing-md)', borderRadius: 'var(--radius-full)', border: '2px solid var(--color-border)', background: 'var(--color-surface)', fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)', cursor: 'pointer', whiteSpace: 'nowrap' },
     cardList: { display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' },
+    productRow: { display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'flex-start', marginBottom: 'var(--spacing-sm)' },
+    itemList: { display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-sm)', maxHeight: '150px', overflowY: 'auto' },
+    itemRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs)', backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-md)' }
 };
 
 export const OrdersPage = () => {
     const { orders, loading, updateOrderStatus, deleteOrder, createOrder, loadMore, hasMore, refreshOrders } = useOrders();
     const { customers } = useCustomers();
+    const { products } = useProducts(); // Get products
     const [filter, setFilter] = useState('all');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -32,6 +38,24 @@ export const OrdersPage = () => {
     const [saving, setSaving] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState('');
     const [isNewCustomer, setIsNewCustomer] = useState(false);
+
+    // Order Item State
+    const [orderItems, setOrderItems] = useState([]);
+    const [currentProduct, setCurrentProduct] = useState('');
+    const [currentQty, setCurrentQty] = useState(1);
+
+    // Prepare customer options
+    const customerOptions = [
+        ...customers.map(c => ({ value: c.id, label: `${c.name} ${c.phone ? `- ${c.phone}` : ''}` })),
+        { value: 'new', label: '➕ Novo Cliente' }
+    ];
+
+    // Prepare product options
+    const productOptions = products.map(p => ({
+        value: p.id,
+        label: `${p.name} - ${formatCurrency(p.price)}`
+    }));
+
     const [formData, setFormData] = useState({
         customerName: '',
         customerPhone: '',
@@ -42,6 +66,12 @@ export const OrdersPage = () => {
     });
 
     const filteredOrders = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+
+    // Calculate total whenever items change
+    useEffect(() => {
+        const calculatedTotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        setFormData(prev => ({ ...prev, total: calculatedTotal.toFixed(2) }));
+    }, [orderItems]);
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
@@ -71,6 +101,37 @@ export const OrdersPage = () => {
         }
     };
 
+    const handleAddItem = () => {
+        if (!currentProduct) return;
+
+        // Find product by numeric ID if possible, or string match
+        const product = products.find(p => String(p.id) === String(currentProduct));
+        if (!product) {
+            console.error('Product not found:', currentProduct);
+            return;
+        }
+
+        const quantity = parseInt(currentQty, 10) || 1;
+        const price = parseFloat(product.price) || 0;
+
+        const newItem = {
+            productId: product.id,
+            name: product.name,
+            price: price, // Ensure number
+            quantity: quantity // Ensure number
+        };
+
+        setOrderItems(prev => [...prev, newItem]); // Functional update to ensure fresh state
+        setCurrentProduct('');
+        setCurrentQty(1);
+    };
+
+    const handleRemoveItem = (index) => {
+        const newItems = [...orderItems];
+        newItems.splice(index, 1);
+        setOrderItems(newItems);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -85,12 +146,14 @@ export const OrdersPage = () => {
                 deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : null,
                 total: parseFloat(formData.total) || 0,
                 advancePayment: parseFloat(formData.advancePayment) || 0,
-                notes: formData.notes
+                notes: formData.notes,
+                items: orderItems // Save items
             });
 
             setShowCreateModal(false);
             setSelectedCustomer('');
             setIsNewCustomer(false);
+            setOrderItems([]); // Reset items
             setFormData({ customerName: '', customerPhone: '', deliveryDate: '', total: '', advancePayment: '', notes: '' });
         } catch (error) {
             alert('Erro ao criar pedido: ' + error.message);
@@ -130,7 +193,7 @@ export const OrdersPage = () => {
                 {filteredOrders.length === 0 ? (
                     <EmptyState icon="📦" title="Nenhuma encomenda"
                         description={filter === 'all' ? "Adicione sua primeira encomenda" : "Nenhuma encomenda com este status"}
-                        action={filter === 'all' && <Button variant="primary" icon={<Plus size={20} />}>Nova Encomenda</Button>} />
+                        action={filter === 'all' && <Button variant="primary" icon={<Plus size={20} />} onClick={() => setShowCreateModal(true)}>Nova Encomenda</Button>} />
                 ) : (
                     <div style={pageStyles.cardList}>
                         {filteredOrders.map((order) => (
@@ -182,6 +245,14 @@ export const OrdersPage = () => {
                                             <span>Entrega: {formatDate(order.deliveryDate)}</span>
                                         </div>
                                     )}
+
+                                    {/* Order Items Preview (Compact) */}
+                                    {order.items && order.items.length > 0 && (
+                                        <div style={{ marginTop: 'var(--spacing-sm)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                            {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                                        </div>
+                                    )}
+
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--spacing-md)' }}>
                                         <div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Total</div>
@@ -257,44 +328,24 @@ export const OrdersPage = () => {
                 >
                     <form style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }} onSubmit={handleSubmit}>
                         {/* Customer Selection */}
-                        <div>
-                            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>
-                                Cliente
-                            </label>
-                            <select
-                                value={selectedCustomer}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setSelectedCustomer(value);
-                                    setIsNewCustomer(value === 'new');
-                                    if (value !== 'new') {
-                                        setFormData({ ...formData, customerName: '', customerPhone: '' });
-                                    }
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: 'var(--spacing-sm)',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '2px solid var(--color-border)',
-                                    fontSize: 'var(--font-size-base)',
-                                    backgroundColor: 'var(--color-surface)',
-                                    color: 'var(--color-text)'
-                                }}
-                                required
-                            >
-                                <option value="">Selecione um cliente</option>
-                                {customers.map(customer => (
-                                    <option key={customer.id} value={customer.id}>
-                                        {customer.name} {customer.phone ? `- ${customer.phone}` : ''}
-                                    </option>
-                                ))}
-                                <option value="new">➕ Novo Cliente</option>
-                            </select>
-                        </div>
+                        <Select
+                            label="Cliente"
+                            value={selectedCustomer}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setSelectedCustomer(value);
+                                setIsNewCustomer(value === 'new');
+                                if (value !== 'new') {
+                                    setFormData({ ...formData, customerName: '', customerPhone: '' });
+                                }
+                            }}
+                            options={customerOptions}
+                            required
+                        />
 
                         {/* New Customer Fields */}
                         {isNewCustomer && (
-                            <>
+                            <div style={{ padding: 'var(--spacing-md)', backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--color-border)' }}>
                                 <Input
                                     type="text"
                                     label="Nome do Novo Cliente"
@@ -309,8 +360,9 @@ export const OrdersPage = () => {
                                     placeholder="(11) 99999-9999"
                                     value={formData.customerPhone}
                                     onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                                    style={{ marginBottom: 0 }}
                                 />
-                            </>
+                            </div>
                         )}
 
                         <Input
@@ -319,27 +371,92 @@ export const OrdersPage = () => {
                             value={formData.deliveryDate}
                             onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
                         />
-                        <Input
-                            type="number"
-                            label="Valor Total"
-                            placeholder="0.00"
-                            step="0.01"
-                            value={formData.total}
-                            onChange={(e) => setFormData({ ...formData, total: e.target.value })}
-                            required
-                        />
-                        <Input
-                            type="number"
-                            label="Sinal (opcional)"
-                            placeholder="0.00"
-                            step="0.01"
-                            value={formData.advancePayment}
-                            onChange={(e) => setFormData({ ...formData, advancePayment: e.target.value })}
-                        />
+
+                        {/* Product Selection */}
+                        <div style={{ padding: 'var(--spacing-md)', backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                            <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)', fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text)' }}>
+                                Adicionar Produtos
+                            </label>
+                            <div style={pageStyles.productRow}>
+                                <div style={{ flex: 1 }}>
+                                    <Select
+                                        value={currentProduct}
+                                        onChange={(e) => setCurrentProduct(e.target.value)}
+                                        options={productOptions}
+                                        placeholder="Selecione um produto"
+                                        style={{ marginBottom: 0 }}
+                                    />
+                                </div>
+                                <div style={{ width: '100px' }}>
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        placeholder="Qtd"
+                                        value={currentQty}
+                                        onChange={(e) => setCurrentQty(e.target.value)}
+                                        style={{ marginBottom: 0, textAlign: 'center' }}
+                                    />
+                                </div>
+                                <Button type="button" variant="primary" onClick={handleAddItem} disabled={!currentProduct} style={{ height: '48px', width: '48px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Plus size={24} />
+                                </Button>
+                            </div>
+
+                            {/* Items List */}
+                            {orderItems.length > 0 && (
+                                <div style={pageStyles.itemList}>
+                                    {orderItems.map((item, index) => (
+                                        <div key={index} style={pageStyles.itemRow}>
+                                            <div style={{ fontSize: 'var(--font-size-sm)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                                                <span style={{ fontWeight: 'bold', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '2px 6px', borderRadius: '4px' }}>{item.quantity}x</span>
+                                                <span>{item.name}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                                <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)' }}>
+                                                    {formatCurrency(item.price * item.quantity)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveItem(index)}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+                            <div style={{ flex: 1 }}>
+                                <Input
+                                    type="number"
+                                    label="Valor Total"
+                                    placeholder="0.00"
+                                    step="0.01"
+                                    value={formData.total}
+                                    readOnly
+                                    style={{ backgroundColor: 'var(--color-surface-hover)', fontWeight: 'bold', fontSize: 'var(--font-size-lg)' }}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <Input
+                                    type="number"
+                                    label="Sinal (opcional)"
+                                    placeholder="0.00"
+                                    step="0.01"
+                                    value={formData.advancePayment}
+                                    onChange={(e) => setFormData({ ...formData, advancePayment: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
                         <Input
                             type="text"
                             label="Observações (opcional)"
-                            placeholder="Detalhes do pedido..."
+                            placeholder="Detalhes do pedido, instruções especiais..."
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                         />
