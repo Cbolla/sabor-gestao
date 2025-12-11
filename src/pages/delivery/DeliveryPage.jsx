@@ -75,7 +75,7 @@ export const DeliveryPage = () => {
                                                     Assuming address might not be fully available on order object based on previous files, 
                                                     but let's display what we have or a placeholder. 
                                                 */}
-                                                {order.deliveryAddress || "Endereço não informado / Retirada no balcão"}
+                                                {order.deliveryAddress || order.address || order.customerAddress || "Endereço não informado / Retirada no balcão"}
                                             </span>
                                         </div>
 

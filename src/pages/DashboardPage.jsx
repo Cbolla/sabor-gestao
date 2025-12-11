@@ -30,7 +30,7 @@ const pageStyles = {
     },
     grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Responsive grid
         gap: 'var(--spacing-md)',
     },
     cardList: {
