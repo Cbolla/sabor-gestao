@@ -22,6 +22,8 @@ import {
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody, MetricCard } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
+import { Input } from '../../components/common/Input';
+import { Select } from '../../components/common/Select';
 import { useOrders } from '../../hooks/useOrders';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { formatDate } from '../../utils/dateUtils';
@@ -141,49 +143,48 @@ export const ReportsPage = () => {
                 <Card className="mb-md">
                     <CardHeader icon={<Filter size={20} />} title="Filtros" />
                     <CardBody>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-                            <div>
-                                <label style={{ fontSize: '12px', color: '#666' }}>Início</label>
-                                <input
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-md)' }}>
+                            <div style={{ marginBottom: 0 }}>
+                                <Input
                                     type="date"
+                                    label="Início"
                                     value={startDate}
                                     onChange={e => setStartDate(e.target.value)}
-                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                    style={{ marginBottom: 0 }}
                                 />
                             </div>
-                            <div>
-                                <label style={{ fontSize: '12px', color: '#666' }}>Fim</label>
-                                <input
+                            <div style={{ marginBottom: 0 }}>
+                                <Input
                                     type="date"
+                                    label="Fim"
                                     value={endDate}
                                     onChange={e => setEndDate(e.target.value)}
-                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                    style={{ marginBottom: 0 }}
                                 />
                             </div>
-                            <div>
-                                <label style={{ fontSize: '12px', color: '#666' }}>Status</label>
-                                <select
+                            <div style={{ marginBottom: 0 }}>
+                                <Select
+                                    label="Status"
                                     value={statusFilter}
                                     onChange={e => setStatusFilter(e.target.value)}
-                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                                >
-                                    <option value="all">Todos</option>
-                                    <option value="delivered">Entregues</option>
-                                    <option value="pending">Pendentes</option>
-                                    <option value="canceled">Cancelados</option>
-                                </select>
+                                    options={[
+                                        { value: 'all', label: 'Todos' },
+                                        { value: 'delivered', label: 'Entregues' },
+                                        { value: 'pending', label: 'Pendentes' },
+                                        { value: 'canceled', label: 'Cancelados' }
+                                    ]}
+                                    style={{ marginBottom: 0 }}
+                                />
                             </div>
-                            <div>
-                                <label style={{ fontSize: '12px', color: '#666' }}>Buscar</label>
-                                <div style={{ position: 'relative' }}>
-                                    <input
-                                        placeholder="Cliente ou Produto..."
-                                        value={searchTerm}
-                                        onChange={e => setSearchTerm(e.target.value)}
-                                        style={{ width: '100%', padding: '8px', paddingRight: '30px', borderRadius: '4px', border: '1px solid #ddd' }}
-                                    />
-                                    <Search size={16} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
-                                </div>
+                            <div style={{ marginBottom: 0 }}>
+                                <Input
+                                    label="Buscar"
+                                    placeholder="Cliente ou Produto..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    icon={<Search size={18} />}
+                                    style={{ marginBottom: 0 }}
+                                />
                             </div>
                         </div>
                     </CardBody>

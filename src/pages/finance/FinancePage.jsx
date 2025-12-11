@@ -31,7 +31,7 @@ const pageStyles = {
     },
     grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: 'var(--spacing-md)',
     },
     cardList: {

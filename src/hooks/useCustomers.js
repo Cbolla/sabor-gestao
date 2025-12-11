@@ -107,14 +107,21 @@ export const useCustomers = () => {
             }
 
             const collectionPath = `establishments/${establishment.id}/customers`;
-
-            const customerId = await firestoreService.addDocument(collectionPath, {
+            const docData = {
                 ...customerData,
                 totalOrders: 0,
                 totalSpent: 0,
-            });
+            };
 
-            refreshCustomers();
+            const customerId = await firestoreService.addDocument(collectionPath, docData);
+
+            // Optimistic Update
+            setCustomers(prev => [{
+                id: customerId,
+                ...docData,
+                createdAt: new Date()
+            }, ...prev]);
+
             return customerId;
         } catch (err) {
             console.error('Erro ao criar cliente:', err);
@@ -127,10 +134,13 @@ export const useCustomers = () => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
 
+            setCustomers(prev => prev.map(c =>
+                c.id === customerId ? { ...c, ...customerData } : c
+            ));
+
             const collectionPath = `establishments/${establishment.id}/customers`;
             await firestoreService.updateDocument(collectionPath, customerId, customerData);
 
-            refreshCustomers(); // Or update local state optimistically
             return true;
         } catch (err) {
             console.error('Erro ao atualizar cliente:', err);
@@ -143,10 +153,11 @@ export const useCustomers = () => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
 
+            setCustomers(prev => prev.filter(c => c.id !== customerId));
+
             const collectionPath = `establishments/${establishment.id}/customers`;
             await firestoreService.deleteDocument(collectionPath, customerId);
 
-            refreshCustomers();
             return true;
         } catch (err) {
             console.error('Erro ao deletar cliente:', err);

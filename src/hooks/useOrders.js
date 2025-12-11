@@ -73,15 +73,24 @@ export const useOrders = () => {
             const orderNumber = `PED-${Date.now().toString().slice(-6)}`;
             const collectionPath = `establishments/${establishment.id}/orders`;
 
-            const orderId = await firestoreService.addDocument(collectionPath, {
+            const docData = {
                 ...orderData,
                 orderNumber,
                 status: 'pending',
                 paymentStatus: 'pending',
                 createdBy: establishment.ownerId,
-            });
+            };
 
-            refreshOrders();
+            const orderId = await firestoreService.addDocument(collectionPath, docData);
+
+            // Optimistic Update
+            setOrders(prev => [{
+                id: orderId,
+                ...docData,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }, ...prev]);
+
             return orderId;
         } catch (err) {
             console.error('Erro ao criar pedido:', err);
@@ -93,10 +102,13 @@ export const useOrders = () => {
     const updateOrderStatus = async (orderId, status) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
-            const collectionPath = `establishments/${establishment.id}/orders`;
 
+            setOrders(prev => prev.map(o =>
+                o.id === orderId ? { ...o, status } : o
+            ));
+
+            const collectionPath = `establishments/${establishment.id}/orders`;
             await firestoreService.updateDocument(collectionPath, orderId, { status });
-            refreshOrders();
             return true;
         } catch (err) {
             console.error('Erro ao atualizar status do pedido:', err);
@@ -108,9 +120,13 @@ export const useOrders = () => {
     const updateOrder = async (orderId, orderData) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
+
+            setOrders(prev => prev.map(o =>
+                o.id === orderId ? { ...o, ...orderData } : o
+            ));
+
             const collectionPath = `establishments/${establishment.id}/orders`;
             await firestoreService.updateDocument(collectionPath, orderId, orderData);
-            refreshOrders();
             return true;
         } catch (err) {
             console.error('Erro ao atualizar pedido:', err);
@@ -122,9 +138,11 @@ export const useOrders = () => {
     const deleteOrder = async (orderId) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
+
+            setOrders(prev => prev.filter(o => o.id !== orderId));
+
             const collectionPath = `establishments/${establishment.id}/orders`;
             await firestoreService.deleteDocument(collectionPath, orderId);
-            refreshOrders();
             return true;
         } catch (err) {
             console.error('Erro ao deletar pedido:', err);

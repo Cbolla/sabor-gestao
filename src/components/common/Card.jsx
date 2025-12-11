@@ -26,7 +26,7 @@ export const CardHeader = ({ icon, title, subtitle, action, iconVariant = 'prima
     return (
         <div className="card-header">
             {icon && (
-                <div className={`card-icon ${iconVariant}`}>
+                <div className={`card - icon ${iconVariant} `}>
                     {icon}
                 </div>
             )}

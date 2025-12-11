@@ -30,7 +30,7 @@ const pageStyles = {
     },
     grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Responsive grid
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', // Responsive grid: Stack at < 460px approx
         gap: 'var(--spacing-md)',
     },
     cardList: {
