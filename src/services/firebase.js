@@ -1,39 +1,24 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import {
-    initializeFirestore,
-    persistentLocalCache,
-    persistentSingleTabManager
-} from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import { getFunctions } from 'firebase/functions';
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+    apiKey: "AIzaSyC5QG9CzQlIGNrV8rZL-7uoSegXSfIbZmw",
+    authDomain: "sabor-da-promessa.firebaseapp.com",
+    projectId: "sabor-da-promessa",
+    storageBucket: "sabor-da-promessa.firebasestorage.app",
+    messagingSenderId: "542650817571",
+    appId: "1:542650817571:web:e236c577c3d4b35a91e596",
+    measurementId: "G-Y5ETYMXBVM"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const auth = getAuth(app);
 
-// Initialize Auth
-export const auth = getAuth(app);
-
-// Initialize Firestore with FASTER persistence settings
-// Using singleTabManager for quicker startup (no cross-tab sync overhead)
-export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentSingleTabManager({ forceOwnership: true })
-    })
-});
-
-export const storage = getStorage(app);
-export const functions = getFunctions(app);
-
-export default app;
-
+export { app, analytics, db, storage, auth };

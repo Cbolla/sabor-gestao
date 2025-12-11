@@ -76,7 +76,7 @@ export const KitchenPage = () => {
                                     <div style={{ marginBottom: 'var(--spacing-md)' }}>
                                         {order.items.map((item, idx) => (
                                             <div key={idx} style={{ fontSize: 'var(--font-size-sm)', padding: 'var(--spacing-xs) 0' }}>
-                                                • {item.quantity}x {item.productName}
+                                                • {item.quantity}x {item.name || item.productName}
                                             </div>
                                         ))}
                                     </div>

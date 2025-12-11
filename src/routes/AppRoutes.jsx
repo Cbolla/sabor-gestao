@@ -20,6 +20,8 @@ const CustomersPage = lazy(() => import('../pages/customers/CustomersPage'));
 const ProductsPage = lazy(() => import('../pages/products/ProductsPage'));
 const OrdersPage = lazy(() => import('../pages/orders/OrdersPage'));
 const KitchenPage = lazy(() => import('../pages/kitchen/KitchenPage'));
+const DeliveryPage = lazy(() => import('../pages/delivery/DeliveryPage'));
+import { MigrationPage } from '../pages/MigrationPage'; // Not lazy for now
 
 const LoadingFallback = () => (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -57,6 +59,11 @@ export const AppRoutes = () => {
 
                     {/* Kitchen routes */}
                     <Route path="/kitchen" element={<ProtectedRoute><KitchenPage /></ProtectedRoute>} />
+
+                    {/* Delivery routes */}
+                    <Route path="/deliveries" element={<ProtectedRoute><DeliveryPage /></ProtectedRoute>} />
+
+                    <Route path="/migration" element={<ProtectedRoute><MigrationPage /></ProtectedRoute>} />
 
                     {/* Catch all - redirect to dashboard */}
                     <Route path="*" element={<Navigate to="/" replace />} />

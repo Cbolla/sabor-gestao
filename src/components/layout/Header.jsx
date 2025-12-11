@@ -60,7 +60,7 @@ export const Header = ({ title }) => {
     return (
         <header style={headerStyles.container}>
             <div style={headerStyles.left}>
-                <div style={headerStyles.logo}>🍰</div>
+                <img src="/logo.jpg" alt="Logo" style={{ height: '40px', width: 'auto', borderRadius: '50%' }} />
                 <div style={headerStyles.info}>
                     <h1 style={headerStyles.title}>
                         {title || establishment?.name || 'Sabor da Promessa'}

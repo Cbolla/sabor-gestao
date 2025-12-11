@@ -42,10 +42,13 @@ export const Input = ({
     fullWidth = true,
     ...props
 }) => {
+    const { style, ...otherProps } = props;
+
     const inputStyle = {
         ...inputStyles.input,
         ...(error && { borderColor: 'var(--color-danger)' }),
         ...(fullWidth && { width: '100%' }),
+        ...(style || {}),
     };
 
     return (
@@ -66,7 +69,7 @@ export const Input = ({
                         e.target.style.borderColor = 'var(--color-border)';
                     }
                 }}
-                {...props}
+                {...otherProps}
             />
             {error && <span style={inputStyles.error}>{error}</span>}
             {!error && helperText && <span style={inputStyles.helper}>{helperText}</span>}

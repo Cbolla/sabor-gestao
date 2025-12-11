@@ -44,9 +44,12 @@ export const Select = ({
     placeholder = 'Selecione...',
     ...props
 }) => {
+    const { style, ...otherProps } = props;
+
     const selectStyle = {
         ...selectStyles.select,
         ...(error && { borderColor: 'var(--color-danger)' }),
+        ...(style || {}),
     };
 
     return (
@@ -67,7 +70,7 @@ export const Select = ({
                         e.target.style.borderColor = 'var(--color-border)';
                     }
                 }}
-                {...props}
+                {...otherProps}
             >
                 <option value="">{placeholder}</option>
                 {options.map((option) => (

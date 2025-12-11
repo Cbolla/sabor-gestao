@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Package, Search } from 'lucide-react';
+import { Plus, Package, Search, Pencil } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -30,9 +30,10 @@ const pageStyles = {
 };
 
 export const ProductsPage = () => {
-    const { products, loading, createProduct, loadMore, hasMore, refreshProducts } = useProducts();
+    const { products, loading, createProduct, updateProduct, loadMore, hasMore, refreshProducts } = useProducts();
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         name: '', description: '', category: '', price: '', cost: ''
@@ -44,19 +45,44 @@ export const ProductsPage = () => {
         p.category?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleEditClick = (product) => {
+        setEditingProduct(product);
+        setFormData({
+            name: product.name,
+            description: product.description || '',
+            category: product.category,
+            price: product.price,
+            cost: product.cost || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleNewProduct = () => {
+        setEditingProduct(null);
+        setFormData({ name: '', description: '', category: '', price: '', cost: '' });
+        setShowModal(true);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
         try {
-            await createProduct({
+            const productData = {
                 ...formData,
                 price: parseFloat(formData.price) || 0,
                 cost: parseFloat(formData.cost) || 0,
-            });
+            };
+
+            if (editingProduct) {
+                await updateProduct(editingProduct.id, productData);
+            } else {
+                await createProduct(productData);
+            }
             setShowModal(false);
+            setEditingProduct(null);
             setFormData({ name: '', description: '', category: '', price: '', cost: '' });
         } catch (error) {
-            alert('Erro ao criar produto: ' + error.message);
+            alert('Erro ao salvar produto: ' + error.message);
         } finally {
             setSaving(false);
         }
@@ -68,7 +94,7 @@ export const ProductsPage = () => {
         <AppLayout title="Produtos">
             <div style={pageStyles.container}>
                 <div style={pageStyles.header}>
-                    <Button variant="primary" fullWidth icon={<Plus size={20} />} onClick={() => setShowModal(true)}>
+                    <Button variant="primary" fullWidth icon={<Plus size={20} />} onClick={handleNewProduct}>
                         Novo Produto
                     </Button>
                 </div>
@@ -80,12 +106,44 @@ export const ProductsPage = () => {
                 {filteredProducts.length === 0 ? (
                     <EmptyState icon="📦" title={searchTerm ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
                         description={searchTerm ? "Tente buscar por outro termo" : "Adicione seu primeiro produto"}
-                        action={!searchTerm && <Button variant="primary" icon={<Plus size={20} />} onClick={() => setShowModal(true)}>Adicionar Produto</Button>} />
+                        action={!searchTerm && <Button variant="primary" icon={<Plus size={20} />} onClick={handleNewProduct}>Adicionar Produto</Button>} />
                 ) : (
                     <div style={pageStyles.cardList}>
                         {filteredProducts.map((product) => (
                             <Card key={product.id} className="stagger-item">
-                                <CardHeader icon={<Package size={24} />} title={product.name} subtitle={product.category} iconVariant="warning" />
+                                <CardHeader
+                                    icon={<Package size={24} />}
+                                    title={product.name}
+                                    subtitle={product.category}
+                                    iconVariant="warning"
+                                    action={
+                                        <button
+                                            onClick={() => handleEditClick(product)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: 'var(--spacing-xs)',
+                                                borderRadius: 'var(--radius-md)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'var(--color-text-secondary)',
+                                                transition: 'all 0.2s'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = 'var(--color-primary-light)';
+                                                e.currentTarget.style.color = 'var(--color-primary)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = 'transparent';
+                                                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                                            }}
+                                        >
+                                            <Pencil size={18} />
+                                        </button>
+                                    }
+                                />
                                 <CardBody>
                                     {product.description && <p style={{ marginBottom: 'var(--spacing-sm)', color: 'var(--color-text-secondary)' }}>{product.description}</p>}
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -105,8 +163,8 @@ export const ProductsPage = () => {
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Lucro</div>
-                                                    <div style={{ 
-                                                        fontSize: 'var(--font-size-base)', 
+                                                    <div style={{
+                                                        fontSize: 'var(--font-size-base)',
                                                         fontWeight: 'var(--font-weight-bold)',
                                                         color: (product.price - product.cost) >= 0 ? 'var(--color-primary)' : 'var(--color-danger)'
                                                     }}>
@@ -117,10 +175,10 @@ export const ProductsPage = () => {
                                         )}
                                     </div>
                                     {product.cost > 0 && product.price > 0 && (
-                                        <div style={{ 
-                                            marginTop: 'var(--spacing-xs)', 
-                                            padding: 'var(--spacing-xs) var(--spacing-sm)', 
-                                            backgroundColor: 'var(--color-surface-hover)', 
+                                        <div style={{
+                                            marginTop: 'var(--spacing-xs)',
+                                            padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                            backgroundColor: 'var(--color-surface-hover)',
                                             borderRadius: 'var(--radius-md)',
                                             fontSize: 'var(--font-size-sm)',
                                             display: 'flex',
@@ -147,7 +205,7 @@ export const ProductsPage = () => {
                     </div>
                 )}
 
-                <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Novo Produto"
+                <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingProduct ? "Editar Produto" : "Novo Produto"}
                     footer={<><Button variant="outline" onClick={() => setShowModal(false)}>Cancelar</Button>
                         <Button variant="primary" onClick={handleSubmit} loading={saving}>Salvar</Button></>}>
                     <form style={pageStyles.form} onSubmit={handleSubmit}>

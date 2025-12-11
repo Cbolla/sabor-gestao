@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { dbService } from '../services/db.service';
+import { orderBy } from 'firebase/firestore';
+import { firestoreService } from '../services/firestore.service';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useOrders = () => {
@@ -7,7 +8,7 @@ export const useOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [offset, setOffset] = useState(0);
+    const [lastDoc, setLastDoc] = useState(null);
     const [hasMore, setHasMore] = useState(true);
 
     const ITEMS_PER_PAGE = 20;
@@ -20,25 +21,25 @@ export const useOrders = () => {
 
         try {
             setLoading(true);
+            const collectionPath = `establishments/${establishment.id}/orders`;
+            const constraints = [
+                orderBy('createdAt', 'desc')
+            ];
 
-            const result = await dbService.getPaginatedDocuments(
-                'orders',
-                {
-                    where: { field: 'establishmentId', value: establishment.id },
-                    orderBy: { field: 'createdAt', direction: 'desc' }
-                },
-                isInitial ? 0 : offset,
+            const result = await firestoreService.getPaginatedDocuments(
+                collectionPath,
+                constraints,
+                isInitial ? null : lastDoc,
                 ITEMS_PER_PAGE
             );
 
             if (isInitial) {
                 setOrders(result.data);
-                setOffset(0);
             } else {
                 setOrders(prev => [...prev, ...result.data]);
             }
 
-            setOffset(result.offset);
+            setLastDoc(result.lastDoc);
             setHasMore(result.hasMore);
             setError(null);
         } catch (err) {
@@ -60,7 +61,7 @@ export const useOrders = () => {
     };
 
     const refreshOrders = () => {
-        setOffset(0);
+        setLastDoc(null);
         setHasMore(true);
         fetchOrders(true);
     };
@@ -70,10 +71,10 @@ export const useOrders = () => {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
 
             const orderNumber = `PED-${Date.now().toString().slice(-6)}`;
+            const collectionPath = `establishments/${establishment.id}/orders`;
 
-            const orderId = await dbService.addDocument('orders', {
+            const orderId = await firestoreService.addDocument(collectionPath, {
                 ...orderData,
-                establishmentId: establishment.id,
                 orderNumber,
                 status: 'pending',
                 paymentStatus: 'pending',
@@ -92,7 +93,23 @@ export const useOrders = () => {
     const updateOrderStatus = async (orderId, status) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
-            await dbService.updateDocument('orders', orderId, { status });
+            const collectionPath = `establishments/${establishment.id}/orders`;
+
+            await firestoreService.updateDocument(collectionPath, orderId, { status });
+            refreshOrders();
+            return true;
+        } catch (err) {
+            console.error('Erro ao atualizar status do pedido:', err);
+            setError(err.message);
+            throw err;
+        }
+    };
+
+    const updateOrder = async (orderId, orderData) => {
+        try {
+            if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
+            const collectionPath = `establishments/${establishment.id}/orders`;
+            await firestoreService.updateDocument(collectionPath, orderId, orderData);
             refreshOrders();
             return true;
         } catch (err) {
@@ -105,7 +122,8 @@ export const useOrders = () => {
     const deleteOrder = async (orderId) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
-            await dbService.deleteDocument('orders', orderId);
+            const collectionPath = `establishments/${establishment.id}/orders`;
+            await firestoreService.deleteDocument(collectionPath, orderId);
             refreshOrders();
             return true;
         } catch (err) {
@@ -115,7 +133,7 @@ export const useOrders = () => {
         }
     };
 
-    return { orders, loading, error, loadMore, hasMore, refreshOrders, createOrder, updateOrderStatus, deleteOrder };
+    return { orders, loading, error, loadMore, hasMore, refreshOrders, createOrder, updateOrderStatus, updateOrder, deleteOrder };
 };
 
 export default useOrders;

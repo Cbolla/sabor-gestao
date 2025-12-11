@@ -12,6 +12,11 @@ class SaborGestaoDatabase extends Dexie {
             products: '++id, establishmentId, name, category, createdAt',
             orders: '++id, establishmentId, orderNumber, status, createdAt'
         });
+
+        this.version(2).stores({
+            expenses: '++id, establishmentId, category, status, createdAt',
+            installments: '++id, expenseId, status, dueDate'
+        });
     }
 }
 

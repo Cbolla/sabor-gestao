@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { dbService } from '../services/db.service';
+import { orderBy, where } from 'firebase/firestore';
+import { firestoreService } from '../services/firestore.service';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useCustomers = () => {
@@ -7,7 +8,7 @@ export const useCustomers = () => {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [offset, setOffset] = useState(0);
+    const [lastDoc, setLastDoc] = useState(null); // Firestore cursor
     const [hasMore, setHasMore] = useState(true);
 
     const ITEMS_PER_PAGE = 20;
@@ -21,24 +22,27 @@ export const useCustomers = () => {
         try {
             setLoading(true);
 
-            const result = await dbService.getPaginatedDocuments(
-                'customers',
-                {
-                    where: { field: 'establishmentId', value: establishment.id },
-                    orderBy: { field: 'name', direction: 'asc' }
-                },
-                isInitial ? 0 : offset,
+            // Fetch from subcollection: establishments/{id}/customers
+            const collectionPath = `establishments/${establishment.id}/customers`;
+
+            const constraints = [
+                orderBy('name', 'asc'),
+            ];
+
+            const result = await firestoreService.getPaginatedDocuments(
+                collectionPath,
+                constraints,
+                isInitial ? null : lastDoc,
                 ITEMS_PER_PAGE
             );
 
             if (isInitial) {
                 setCustomers(result.data);
-                setOffset(0);
             } else {
                 setCustomers(prev => [...prev, ...result.data]);
             }
 
-            setOffset(result.offset);
+            setLastDoc(result.lastDoc);
             setHasMore(result.hasMore);
             setError(null);
         } catch (err) {
@@ -51,19 +55,27 @@ export const useCustomers = () => {
 
     const searchCustomers = async (term) => {
         if (!establishment?.id) return;
+        if (!term) {
+            refreshCustomers();
+            return;
+        }
 
         try {
             setLoading(true);
+            const collectionPath = `establishments/${establishment.id}/customers`;
 
-            const results = await dbService.searchDocuments(
-                'customers',
-                'name',
-                term,
-                { where: { field: 'establishmentId', value: establishment.id } }
-            );
+            // Firestore simple search (prefix match logic)
+            // name >= term AND name <= term + '\uf8ff'
+            const constraints = [
+                where('name', '>=', term),
+                where('name', '<=', term + '\uf8ff'),
+                orderBy('name', 'asc') // Required for range query
+            ];
+
+            const results = await firestoreService.getDocuments(collectionPath, constraints);
 
             setCustomers(results);
-            setHasMore(false); // Search results don't have pagination
+            setHasMore(false);
         } catch (err) {
             console.error('Erro na busca:', err);
             setError(err.message);
@@ -83,7 +95,7 @@ export const useCustomers = () => {
     };
 
     const refreshCustomers = () => {
-        setOffset(0);
+        setLastDoc(null);
         setHasMore(true);
         fetchCustomers(true);
     };
@@ -94,9 +106,10 @@ export const useCustomers = () => {
                 throw new Error('Estabelecimento não encontrado');
             }
 
-            const customerId = await dbService.addDocument('customers', {
+            const collectionPath = `establishments/${establishment.id}/customers`;
+
+            const customerId = await firestoreService.addDocument(collectionPath, {
                 ...customerData,
-                establishmentId: establishment.id,
                 totalOrders: 0,
                 totalSpent: 0,
             });
@@ -112,12 +125,12 @@ export const useCustomers = () => {
 
     const updateCustomer = async (customerId, customerData) => {
         try {
-            if (!establishment?.id) {
-                throw new Error('Estabelecimento não encontrado');
-            }
+            if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
 
-            await dbService.updateDocument('customers', customerId, customerData);
-            refreshCustomers();
+            const collectionPath = `establishments/${establishment.id}/customers`;
+            await firestoreService.updateDocument(collectionPath, customerId, customerData);
+
+            refreshCustomers(); // Or update local state optimistically
             return true;
         } catch (err) {
             console.error('Erro ao atualizar cliente:', err);
@@ -128,11 +141,11 @@ export const useCustomers = () => {
 
     const deleteCustomer = async (customerId) => {
         try {
-            if (!establishment?.id) {
-                throw new Error('Estabelecimento não encontrado');
-            }
+            if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
 
-            await dbService.deleteDocument('customers', customerId);
+            const collectionPath = `establishments/${establishment.id}/customers`;
+            await firestoreService.deleteDocument(collectionPath, customerId);
+
             refreshCustomers();
             return true;
         } catch (err) {

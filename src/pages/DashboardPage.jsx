@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     DollarSign,
@@ -12,6 +12,8 @@ import {
 import { AppLayout } from '../components/layout/AppLayout';
 import { Card, CardHeader, CardBody, MetricCard } from '../components/common/Card';
 import { useAuth } from '../contexts/AuthContext';
+import { useOrders } from '../hooks/useOrders';
+import { formatCurrency } from '../utils/currencyUtils';
 
 const pageStyles = {
     container: {
@@ -41,6 +43,51 @@ const pageStyles = {
 export const DashboardPage = () => {
     const navigate = useNavigate();
     const { establishment } = useAuth();
+    const { orders } = useOrders();
+
+    // Calculate metrics
+    const metrics = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Sales Today: Total of orders created today (or delivered today? usually created)
+        // Let's go with Created Today for "Sales"
+        const todayOrders = orders.filter(o => {
+            if (!o.createdAt) return false;
+            // Handle both Firestore timestamp (seconds) or ISO string
+            const date = o.createdAt.seconds ? new Date(o.createdAt.seconds * 1000) : new Date(o.createdAt);
+            return date.toISOString().split('T')[0] === today;
+        });
+
+        const salesToday = todayOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+        // Active Orders: Pending, Confirmed, In Production, Ready
+        const activeOrdersCount = orders.filter(o => ['pending', 'confirmed', 'in_production', 'ready'].includes(o.status)).length;
+
+        // To Receive: Total of active orders (not yet delivered/paid fully? Assuming simple logic for now)
+        // Or strictly 'delivered' but not 'paid'. Since we don't track payment status deeply yet, let's use Total of Active Orders as "Pipeline"
+        // OR better: Total Revenue today (Delivered Today) vs Sales (Booked Today).
+        // User asked for "money" to sum up when "delivered".
+        // Let's interpret "Sales Today" as BOOKED revenue (created)
+        // And "A Receber" (To Receive) as potential revenue from active orders.
+
+        // Adjusted Strategy:
+        // Vendas Hoje = Sum of orders created today.
+        // A Receber = Sum of orders NOT yet delivered (active).
+        // If I deliver an order, it should move from 'A Receber' to 'Vendas Realizadas' (if we had that).
+
+        // To satisfy "summed the money", let's ensure "Vendas Hoje" captures the order correctly, 
+        // AND "A Receber" decreases when delivered.
+
+        const toReceive = orders
+            .filter(o => ['pending', 'confirmed', 'in_production', 'ready'].includes(o.status))
+            .reduce((sum, o) => sum + (o.total || 0), 0);
+
+        return {
+            salesToday,
+            activeOrdersCount,
+            toReceive
+        };
+    }, [orders]);
 
     const quickActions = [
         {
@@ -69,6 +116,7 @@ export const DashboardPage = () => {
             subtitle: 'Catálogo',
             icon: <Package size={24} />,
             iconVariant: 'warning',
+            path: '/products', // Fixed path
         },
         {
             title: 'Cozinha',
@@ -94,17 +142,17 @@ export const DashboardPage = () => {
                     <h2 style={pageStyles.sectionTitle}>Visão Geral</h2>
                     <div style={pageStyles.grid}>
                         <MetricCard
-                            value="R$ 0,00"
+                            value={formatCurrency(metrics.salesToday)}
                             label="Vendas Hoje"
                             variant="primary"
                         />
                         <MetricCard
-                            value="0"
+                            value={metrics.activeOrdersCount}
                             label="Pedidos Ativos"
                             variant="success"
                         />
                         <MetricCard
-                            value="R$ 0,00"
+                            value={formatCurrency(metrics.toReceive)}
                             label="A Receber"
                             variant="warning"
                         />

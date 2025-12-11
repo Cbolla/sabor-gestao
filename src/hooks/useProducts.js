@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { dbService } from '../services/db.service';
+import { orderBy, where } from 'firebase/firestore';
+import { firestoreService } from '../services/firestore.service';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useProducts = () => {
@@ -7,7 +8,7 @@ export const useProducts = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [offset, setOffset] = useState(0);
+    const [lastDoc, setLastDoc] = useState(null);
     const [hasMore, setHasMore] = useState(true);
 
     const ITEMS_PER_PAGE = 20;
@@ -20,25 +21,25 @@ export const useProducts = () => {
 
         try {
             setLoading(true);
+            const collectionPath = `establishments/${establishment.id}/products`;
+            const constraints = [
+                orderBy('name', 'asc')
+            ];
 
-            const result = await dbService.getPaginatedDocuments(
-                'products',
-                {
-                    where: { field: 'establishmentId', value: establishment.id },
-                    orderBy: { field: 'name', direction: 'asc' }
-                },
-                isInitial ? 0 : offset,
+            const result = await firestoreService.getPaginatedDocuments(
+                collectionPath,
+                constraints,
+                isInitial ? null : lastDoc,
                 ITEMS_PER_PAGE
             );
 
             if (isInitial) {
                 setProducts(result.data);
-                setOffset(0);
             } else {
                 setProducts(prev => [...prev, ...result.data]);
             }
 
-            setOffset(result.offset);
+            setLastDoc(result.lastDoc);
             setHasMore(result.hasMore);
             setError(null);
         } catch (err) {
@@ -60,7 +61,7 @@ export const useProducts = () => {
     };
 
     const refreshProducts = () => {
-        setOffset(0);
+        setLastDoc(null);
         setHasMore(true);
         fetchProducts(true);
     };
@@ -69,9 +70,9 @@ export const useProducts = () => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
 
-            const productId = await dbService.addDocument('products', {
+            const collectionPath = `establishments/${establishment.id}/products`;
+            const productId = await firestoreService.addDocument(collectionPath, {
                 ...productData,
-                establishmentId: establishment.id,
                 isActive: true
             });
 
@@ -87,7 +88,8 @@ export const useProducts = () => {
     const updateProduct = async (productId, productData) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
-            await dbService.updateDocument('products', productId, productData);
+            const collectionPath = `establishments/${establishment.id}/products`;
+            await firestoreService.updateDocument(collectionPath, productId, productData);
             refreshProducts();
             return true;
         } catch (err) {
@@ -100,7 +102,8 @@ export const useProducts = () => {
     const deleteProduct = async (productId) => {
         try {
             if (!establishment?.id) throw new Error('Estabelecimento não encontrado');
-            await dbService.deleteDocument('products', productId);
+            const collectionPath = `establishments/${establishment.id}/products`;
+            await firestoreService.deleteDocument(collectionPath, productId);
             refreshProducts();
             return true;
         } catch (err) {

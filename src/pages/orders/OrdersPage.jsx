@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, ShoppingBag, Calendar, User, Trash2, X } from 'lucide-react';
+import { Plus, ShoppingBag, Calendar, User, Trash2, X, Pencil } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody, CardFooter } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -27,12 +27,13 @@ const pageStyles = {
 };
 
 export const OrdersPage = () => {
-    const { orders, loading, updateOrderStatus, deleteOrder, createOrder, loadMore, hasMore, refreshOrders } = useOrders();
+    const { orders, loading, updateOrderStatus, deleteOrder, createOrder, updateOrder, loadMore, hasMore, refreshOrders } = useOrders();
     const { customers } = useCustomers();
     const { products } = useProducts(); // Get products
     const [filter, setFilter] = useState('all');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingOrder, setEditingOrder] = useState(null); // Edit state
     const [orderToDelete, setOrderToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -132,15 +133,54 @@ export const OrdersPage = () => {
         setOrderItems(newItems);
     };
 
+    // Helper to open edit modal
+    const handleEditClick = (order) => {
+        setEditingOrder(order);
+
+        // Try to recover customer name if missing (for legacy/bugged orders)
+        let initialCustomerName = order.customerName;
+        if (!initialCustomerName && order.customerId) {
+            const linkedCustomer = customers.find(c => String(c.id) === String(order.customerId));
+            if (linkedCustomer) initialCustomerName = linkedCustomer.name;
+        }
+
+        // Populate form data
+        setFormData({
+            customerName: initialCustomerName,
+            customerPhone: order.customerPhone || '',
+            deliveryDate: order.deliveryDate ? new Date(order.deliveryDate).toISOString().split('T')[0] : '',
+            total: order.total.toFixed(2),
+            advancePayment: order.advancePayment?.toFixed(2) || '',
+            notes: order.notes || ''
+        });
+
+        // Populate items
+        setOrderItems(order.items || []);
+
+        // Set customer selection
+        const customer = customers.find(c => c.name === order.customerName);
+        if (customer) {
+            setSelectedCustomer(customer.id);
+            setIsNewCustomer(false);
+        } else {
+            // If linked customer not found (or it was a loose string), treat as new/manual
+            setSelectedCustomer(order.customerId || 'new');
+            setIsNewCustomer(!order.customerId);
+        }
+
+        setShowCreateModal(true);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSaving(true);
         try {
             // Get customer name from selected customer or new customer input
-            const customerName = isNewCustomer ? formData.customerName :
-                customers.find(c => c.id === selectedCustomer)?.name || formData.customerName;
+            // FIX: Ensure ID comparison is string-safe to prevent "missing name" bug
+            // FIX: Use formData.customerName which is now guaranteed to be set
+            const customerName = formData.customerName;
 
-            await createOrder({
+            const orderData = {
                 customerName,
                 customerId: isNewCustomer ? null : selectedCustomer,
                 deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : null,
@@ -148,15 +188,22 @@ export const OrdersPage = () => {
                 advancePayment: parseFloat(formData.advancePayment) || 0,
                 notes: formData.notes,
                 items: orderItems // Save items
-            });
+            };
+
+            if (editingOrder) {
+                await updateOrder(editingOrder.id, orderData);
+            } else {
+                await createOrder(orderData);
+            }
 
             setShowCreateModal(false);
+            setEditingOrder(null); // Reset edit state
             setSelectedCustomer('');
             setIsNewCustomer(false);
             setOrderItems([]); // Reset items
             setFormData({ customerName: '', customerPhone: '', deliveryDate: '', total: '', advancePayment: '', notes: '' });
         } catch (error) {
-            alert('Erro ao criar pedido: ' + error.message);
+            alert('Erro ao salvar pedido: ' + error.message);
         } finally {
             setSaving(false);
         }
@@ -206,6 +253,31 @@ export const OrdersPage = () => {
                                     action={
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                                             <StatusBadge status={order.status} />
+                                            <button
+                                                onClick={() => handleEditClick(order)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    padding: 'var(--spacing-xs)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: 'var(--color-text-secondary)',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'var(--color-primary-light)';
+                                                    e.currentTarget.style.color = 'var(--color-primary)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.color = 'var(--color-text-secondary)';
+                                                }}
+                                            >
+                                                <Pencil size={18} />
+                                            </button>
                                             <button
                                                 onClick={() => handleDeleteClick(order)}
                                                 style={{
@@ -320,7 +392,7 @@ export const OrdersPage = () => {
                 <Modal
                     isOpen={showCreateModal}
                     onClose={() => setShowCreateModal(false)}
-                    title="Nova Encomenda"
+                    title={editingOrder ? "Editar Encomenda" : "Nova Encomenda"}
                     footer={<>
                         <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancelar</Button>
                         <Button variant="primary" onClick={handleSubmit} loading={saving}>Salvar</Button>
@@ -335,8 +407,18 @@ export const OrdersPage = () => {
                                 const value = e.target.value;
                                 setSelectedCustomer(value);
                                 setIsNewCustomer(value === 'new');
-                                if (value !== 'new') {
+
+                                if (value === 'new') {
                                     setFormData({ ...formData, customerName: '', customerPhone: '' });
+                                } else {
+                                    const customer = customers.find(c => String(c.id) === String(value));
+                                    if (customer) {
+                                        setFormData({
+                                            ...formData,
+                                            customerName: customer.name,
+                                            customerPhone: customer.phone || ''
+                                        });
+                                    }
                                 }
                             }}
                             options={customerOptions}

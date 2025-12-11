@@ -81,6 +81,8 @@ export const Button = ({
     className = '',
     ...props
 }) => {
+    const { style, ...otherProps } = props;
+
     const getButtonStyle = () => {
         return {
             ...buttonStyles.base,
@@ -89,6 +91,7 @@ export const Button = ({
             ...(size === 'large' && buttonStyles.large),
             ...(fullWidth && buttonStyles.fullWidth),
             ...(disabled && buttonStyles.disabled),
+            ...(style || {}),
         };
     };
 
@@ -107,7 +110,7 @@ export const Button = ({
             style={getButtonStyle()}
             onClick={handleClick}
             disabled={disabled || loading}
-            {...props}
+            {...otherProps}
         >
             {loading ? (
                 <>
