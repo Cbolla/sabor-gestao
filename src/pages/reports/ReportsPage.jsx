@@ -6,9 +6,7 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer,
-    LineChart,
-    Line
+    ResponsiveContainer
 } from 'recharts';
 import {
     Calendar,
@@ -17,41 +15,55 @@ import {
     Filter,
     TrendingUp,
     ShoppingBag,
-    CreditCard
+    Pencil // Import Pencil
 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody, MetricCard } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
 import { Select } from '../../components/common/Select';
+import { Modal } from '../../components/common/Modal'; // Import Modal
 import { useOrders } from '../../hooks/useOrders';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { formatDate } from '../../utils/dateUtils';
-import { startOfMonth, endOfMonth, subMonths, isWithinInterval, parseISO, format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 export const ReportsPage = () => {
-    const { orders, loading } = useOrders();
-    const [dateRange, setDateRange] = useState('month'); // today, week, month, year, custom
+    const { orders, loading, updateOrder } = useOrders(); // Get updateOrder
+    const [dateRange, setDateRange] = useState('month');
     const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
     const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
+    // Edit State
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingOrder, setEditingOrder] = useState(null);
+    const [editFormData, setEditFormData] = useState({
+        deliveryDate: '',
+        total: '',
+        status: ''
+    });
+    const [saving, setSaving] = useState(false);
+
+    // Helper: Get best available date (Delivery > Created)
+    const getOrderDate = (order) => {
+        if (order.deliveryDate) {
+            if (order.deliveryDate.seconds) return new Date(order.deliveryDate.seconds * 1000);
+            return new Date(order.deliveryDate);
+        }
+        if (order.createdAt) {
+            if (order.createdAt.seconds) return new Date(order.createdAt.seconds * 1000);
+            return new Date(order.createdAt);
+        }
+        return new Date(); // Fallback
+    };
+
     // Filter Logic
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
-            // 1. Date Filter
-            let orderDate;
-            if (order.createdAt?.seconds) {
-                orderDate = new Date(order.createdAt.seconds * 1000);
-            } else if (order.createdAt) {
-                orderDate = new Date(order.createdAt);
-            } else {
-                return false;
-            }
-
-            // Adjust comparison to be inclusive and handle timezones simply (by interacting with ISO strings yyyy-mm-dd)
+            // 1. Date Filter (using Delivery Date preferably)
+            const orderDate = getOrderDate(order);
             const orderDateStr = format(orderDate, 'yyyy-MM-dd');
             const start = startDate;
             const end = endDate;
@@ -82,9 +94,8 @@ export const ReportsPage = () => {
         // Group by Date for Chart
         const salesByDate = {};
         filteredOrders.forEach(o => {
-            let dateStr = '';
-            if (o.createdAt?.seconds) dateStr = format(new Date(o.createdAt.seconds * 1000), 'dd/MM');
-            else if (o.createdAt) dateStr = format(new Date(o.createdAt), 'dd/MM');
+            const date = getOrderDate(o);
+            const dateStr = format(date, 'dd/MM');
 
             if (dateStr) {
                 salesByDate[dateStr] = (salesByDate[dateStr] || 0) + (o.total || 0);
@@ -95,9 +106,8 @@ export const ReportsPage = () => {
             name: date,
             total,
         })).sort((a, b) => {
-            // Simple string sort works for dd/MM if strictly within same year/month structure, 
-            // but for robustness across years might need real dates. For MVP chart display it's usually fine or we rely on input order.
-            // Actually, recreating standard sort:
+            // Simple sort relying on dd/MM format usually works for single month view
+            // Enhancing to full date sort would require storing full date in key if needed
             return a.name.localeCompare(b.name);
         });
 
@@ -106,9 +116,9 @@ export const ReportsPage = () => {
 
     const handleExport = () => {
         // CSV Generation
-        const headers = ['Data', 'Pedido', 'Cliente', 'Status', 'Total', 'Itens'];
+        const headers = ['Data Entrega', 'Pedido', 'Cliente', 'Status', 'Total', 'Itens'];
         const rows = filteredOrders.map(o => {
-            const date = o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000) : new Date(o.createdAt);
+            const date = getOrderDate(o);
             const items = o.items?.map(i => `${i.quantity}x ${i.name}`).join('; ') || '';
             return [
                 format(date, 'dd/MM/yyyy'),
@@ -133,6 +143,35 @@ export const ReportsPage = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    const handleEditClick = (order) => {
+        setEditingOrder(order);
+        const date = getOrderDate(order);
+        setEditFormData({
+            deliveryDate: format(date, 'yyyy-MM-dd'),
+            total: order.total?.toFixed(2) || '0.00',
+            status: order.status
+        });
+        setShowEditModal(true);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingOrder) return;
+        setSaving(true);
+        try {
+            await updateOrder(editingOrder.id, {
+                deliveryDate: new Date(editFormData.deliveryDate),
+                total: parseFloat(editFormData.total),
+                status: editFormData.status
+            });
+            setShowEditModal(false);
+            setEditingOrder(null);
+        } catch (error) {
+            alert('Erro ao atualizar pedido: ' + error.message);
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -211,7 +250,7 @@ export const ReportsPage = () => {
 
                 {/* Chart Section */}
                 <Card className="mb-md">
-                    <CardHeader icon={<TrendingUp size={20} />} title="Evolução de Vendas" />
+                    <CardHeader icon={<TrendingUp size={20} />} title="Evolução de Vendas (por data entrega)" />
                     <CardBody>
                         <div style={{ height: '300px', width: '100%' }}>
                             <ResponsiveContainer>
@@ -247,17 +286,18 @@ export const ReportsPage = () => {
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                             <thead>
                                 <tr style={{ borderBottom: '2px solid #f0f0f0', textAlign: 'left', color: '#666' }}>
-                                    <th style={{ padding: '12px' }}>Data</th>
+                                    <th style={{ padding: '12px' }}>Data Entrega</th>
                                     <th style={{ padding: '12px' }}>Cliente</th>
                                     <th style={{ padding: '12px' }}>Status</th>
                                     <th style={{ padding: '12px', textAlign: 'right' }}>Valor</th>
+                                    <th style={{ padding: '12px', width: '50px' }}></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredOrders.map(order => (
                                     <tr key={order.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
                                         <td style={{ padding: '12px' }}>
-                                            {formatDate(order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000) : order.createdAt)}
+                                            {formatDate(getOrderDate(order))}
                                         </td>
                                         <td style={{ padding: '12px' }}>
                                             <div style={{ fontWeight: '500' }}>{order.customerName}</div>
@@ -277,11 +317,26 @@ export const ReportsPage = () => {
                                         <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
                                             {formatCurrency(order.total)}
                                         </td>
+                                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => handleEditClick(order)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    padding: '4px',
+                                                    color: 'var(--color-text-secondary)',
+                                                    borderRadius: '4px'
+                                                }}
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {filteredOrders.length === 0 && (
                                     <tr>
-                                        <td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                                        <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
                                             Nenhuma venda encontrada neste período.
                                         </td>
                                     </tr>
@@ -290,6 +345,48 @@ export const ReportsPage = () => {
                         </table>
                     </div>
                 </Card>
+
+                {/* Edit Modal */}
+                <Modal
+                    isOpen={showEditModal}
+                    onClose={() => setShowEditModal(false)}
+                    title={`Editar Pedido ${editingOrder?.orderNumber}`}
+                    footer={
+                        <>
+                            <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancelar</Button>
+                            <Button variant="primary" onClick={handleSaveEdit} loading={saving}>Salvar</Button>
+                        </>
+                    }
+                >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <Input
+                            type="date"
+                            label="Data de Entrega (Real)"
+                            value={editFormData.deliveryDate}
+                            onChange={e => setEditFormData({ ...editFormData, deliveryDate: e.target.value })}
+                        />
+                        <Select
+                            label="Status"
+                            value={editFormData.status}
+                            onChange={e => setEditFormData({ ...editFormData, status: e.target.value })}
+                            options={[
+                                { value: 'pending', label: 'Pendente' },
+                                { value: 'confirmed', label: 'Confirmado' },
+                                { value: 'in_production', label: 'Em Produção' },
+                                { value: 'ready', label: 'Pronto' },
+                                { value: 'delivered', label: 'Entregue' },
+                                { value: 'canceled', label: 'Cancelado' }
+                            ]}
+                        />
+                        <Input
+                            type="number"
+                            label="Valor Total"
+                            step="0.01"
+                            value={editFormData.total}
+                            onChange={e => setEditFormData({ ...editFormData, total: e.target.value })}
+                        />
+                    </div>
+                </Modal>
             </div>
         </AppLayout>
     );

@@ -22,6 +22,7 @@ const OrdersPage = lazy(() => import('../pages/orders/OrdersPage'));
 const ReportsPage = lazy(() => import('../pages/reports/ReportsPage')); // Import added
 const KitchenPage = lazy(() => import('../pages/kitchen/KitchenPage'));
 const DeliveryPage = lazy(() => import('../pages/delivery/DeliveryPage'));
+const SettingsPage = lazy(() => import('../pages/settings/SettingsPage'));
 import { MigrationPage } from '../pages/MigrationPage'; // Not lazy for now
 
 const LoadingFallback = () => (
@@ -68,6 +69,7 @@ export const AppRoutes = () => {
                     <Route path="/deliveries" element={<ProtectedRoute><DeliveryPage /></ProtectedRoute>} />
 
                     <Route path="/migration" element={<ProtectedRoute><MigrationPage /></ProtectedRoute>} />
+                    <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
                     {/* Catch all - redirect to dashboard */}
                     <Route path="*" element={<Navigate to="/" replace />} />

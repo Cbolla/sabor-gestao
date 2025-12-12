@@ -1,0 +1,74 @@
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    z-index: var(--z-fixed);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    flex: 1; /* Distribui o espaço igualmente */
+    min-width: 0; /* Permite que o flex item encolha abaixo do conteúdo mínimo se necessário */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: var(--radius-md);
+    -webkit-tap-highlight-color: transparent;
+    color: var(--color-text-secondary);
+    background-color: transparent;
+}
+
+.bottom-nav-item.active {
+    color: var(--color-primary);
+    background-color: var(--color-primary-light);
+}
+
+.bottom-nav-item.toggle {
+    color: var(--color-primary);
+    font-weight: bold;
+}
+
+.bottom-nav-icon {
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bottom-nav-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Responsividade para telas muito pequenas (ex: iPhone SE, dispositivos antigos) */
+@media (max-width: 380px) {
+    .bottom-nav-item {
+        padding: var(--spacing-xs);
+    }
+
+    .bottom-nav-label {
+        font-size: 10px; /* Reduz fonte para evitar quebra */
+    }
+    
+    .bottom-nav-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+}

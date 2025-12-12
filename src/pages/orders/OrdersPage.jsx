@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, ShoppingBag, Calendar, User, Trash2, X, Pencil } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, Calendar, User, Trash2, X, Pencil } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody, CardFooter } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -21,19 +21,21 @@ const pageStyles = {
     filterBar: { display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)', overflowX: 'auto' },
     filterButton: { padding: 'var(--spacing-sm) var(--spacing-md)', borderRadius: 'var(--radius-full)', border: '2px solid var(--color-border)', background: 'var(--color-surface)', fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-semibold)', cursor: 'pointer', whiteSpace: 'nowrap' },
     cardList: { display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' },
-    productRow: { display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'flex-start', marginBottom: 'var(--spacing-sm)' },
+    productRow: { display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', marginBottom: 'var(--spacing-sm)' },
     itemList: { display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-sm)', maxHeight: '150px', overflowY: 'auto' },
     itemRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs)', backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-md)' }
 };
 
+
+
 export const OrdersPage = () => {
     const { orders, loading, updateOrderStatus, deleteOrder, createOrder, updateOrder, loadMore, hasMore, refreshOrders } = useOrders();
-    const { customers } = useCustomers();
-    const { products } = useProducts(); // Get products
+    const { customers, createCustomer } = useCustomers(); // Get createCustomer
+    const { products } = useProducts();
     const [filter, setFilter] = useState('all');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [editingOrder, setEditingOrder] = useState(null); // Edit state
+    const [editingOrder, setEditingOrder] = useState(null);
     const [orderToDelete, setOrderToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -184,14 +186,24 @@ export const OrdersPage = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            // Get customer name from selected customer or new customer input
-            // FIX: Ensure ID comparison is string-safe to prevent "missing name" bug
-            // FIX: Use formData.customerName which is now guaranteed to be set
+            let finalCustomerId = isNewCustomer ? null : selectedCustomer;
             const customerName = formData.customerName;
+
+            // Auto-create customer if new
+            if (isNewCustomer) {
+                if (!customerName.trim()) {
+                    throw new Error('Nome do cliente é obrigatório.');
+                }
+
+                finalCustomerId = await createCustomer({
+                    name: customerName,
+                    phone: formData.customerPhone || ''
+                });
+            }
 
             const orderData = {
                 customerName,
-                customerId: isNewCustomer ? null : selectedCustomer,
+                customerId: finalCustomerId, // Use the new or existing ID
                 deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate) : null,
                 total: parseFloat(formData.total) || 0,
                 advancePayment: parseFloat(formData.advancePayment) || 0,
@@ -351,21 +363,39 @@ export const OrdersPage = () => {
                                         )}
                                     </div>
                                 </CardBody>
-                                {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                                    <CardFooter>
-                                        <Button
-                                            variant="primary"
-                                            size="small"
-                                            fullWidth
-                                            onClick={() => {
-                                                const nextStatus = order.status === 'pending' ? 'confirmed' : order.status === 'confirmed' ? 'in_production' : order.status === 'in_production' ? 'ready' : 'delivered';
-                                                handleStatusChange(order.id, nextStatus);
-                                            }}
-                                        >
-                                            {order.status === 'pending' ? 'Confirmar' : order.status === 'confirmed' ? 'Iniciar Produção' : order.status === 'in_production' ? 'Marcar como Pronto' : 'Marcar como Entregue'}
-                                        </Button>
-                                    </CardFooter>
-                                )}
+                                <CardFooter>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)', width: '100%' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Status:</span>
+                                            <Select
+                                                value={order.status}
+                                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                                options={[
+                                                    { value: 'pending', label: 'Pendente' },
+                                                    { value: 'confirmed', label: 'Confirmado' },
+                                                    { value: 'in_production', label: 'Em Produção' },
+                                                    { value: 'ready', label: 'Pronto' },
+                                                    { value: 'delivered', label: 'Entregue' },
+                                                    { value: 'canceled', label: 'Cancelado' }
+                                                ]}
+                                                style={{ marginBottom: 0, fontSize: '14px', padding: '6px' }}
+                                            />
+                                        </div>
+                                        {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                                            <Button
+                                                variant="primary"
+                                                size="small"
+                                                fullWidth
+                                                onClick={() => {
+                                                    const nextStatus = order.status === 'pending' ? 'confirmed' : order.status === 'confirmed' ? 'in_production' : order.status === 'in_production' ? 'ready' : 'delivered';
+                                                    handleStatusChange(order.id, nextStatus);
+                                                }}
+                                            >
+                                                {order.status === 'pending' ? 'Confirmar' : order.status === 'confirmed' ? 'Iniciar Produção' : order.status === 'in_production' ? 'Marcar como Pronto' : 'Marcar como Entregue'}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardFooter>
                             </Card>
                         ))}
 
@@ -456,12 +486,14 @@ export const OrdersPage = () => {
                             </div>
                         )}
 
-                        <Input
-                            type="date"
-                            label="Data de Entrega"
-                            value={formData.deliveryDate}
-                            onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
-                        />
+                        <div style={{ width: '50%', minWidth: '150px' }}>
+                            <Input
+                                type="date"
+                                label="Data de Entrega"
+                                value={formData.deliveryDate}
+                                onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
+                            />
+                        </div>
 
                         {/* Product Selection */}
                         <div style={{ padding: 'var(--spacing-md)', backgroundColor: 'var(--color-background)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
@@ -478,15 +510,64 @@ export const OrdersPage = () => {
                                         style={{ marginBottom: 0 }}
                                     />
                                 </div>
-                                <div style={{ width: '100px' }}>
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        placeholder="Qtd"
-                                        value={currentQty}
-                                        onChange={(e) => setCurrentQty(e.target.value)}
-                                        style={{ marginBottom: 0, textAlign: 'center' }}
-                                    />
+                                <div style={{ width: '120px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentQty(Math.max(1, (parseInt(currentQty) || 1) - 1))}
+                                            style={{
+                                                border: 'none',
+                                                background: 'var(--color-surface)',
+                                                padding: '8px 12px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'var(--color-text)',
+                                                borderRight: '1px solid var(--color-border)',
+                                                transition: 'background 0.2s'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-background)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'var(--color-surface)'}
+                                        >
+                                            <Minus size={16} />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            value={currentQty}
+                                            onChange={(e) => setCurrentQty(Math.max(1, parseInt(e.target.value) || 0))}
+                                            style={{
+                                                width: '100%',
+                                                border: 'none',
+                                                textAlign: 'center',
+                                                fontSize: 'var(--font-size-base)',
+                                                outline: 'none',
+                                                padding: '8px 0',
+                                                background: 'var(--color-surface)',
+                                                color: 'var(--color-text)'
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentQty((parseInt(currentQty) || 0) + 1)}
+                                            style={{
+                                                border: 'none',
+                                                background: 'var(--color-surface)',
+                                                padding: '8px 12px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'var(--color-text)',
+                                                borderLeft: '1px solid var(--color-border)',
+                                                transition: 'background 0.2s'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-background)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'var(--color-surface)'}
+                                        >
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                                 <Button type="button" variant="primary" onClick={handleAddItem} disabled={!currentProduct} style={{ height: '48px', width: '48px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Plus size={24} />

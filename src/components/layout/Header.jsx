@@ -1,5 +1,6 @@
 import React from 'react';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { IconButton } from '../common/Button';
 
@@ -60,7 +61,15 @@ export const Header = ({ title }) => {
     return (
         <header style={headerStyles.container}>
             <div style={headerStyles.left}>
-                <img src="/logo.jpg" alt="Logo" style={{ height: '40px', width: 'auto', borderRadius: '50%' }} />
+                <img
+                    src={establishment?.logoUrl || '/logo_default.png'}
+                    onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = '/logo.jpg';
+                    }}
+                    alt="Logo"
+                    style={{ height: '40px', width: '40px', objectFit: 'cover', borderRadius: '50%' }}
+                />
                 <div style={headerStyles.info}>
                     <h1 style={headerStyles.title}>
                         {title || establishment?.name || 'Sabor da Promessa'}

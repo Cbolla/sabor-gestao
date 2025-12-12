@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Package, Search, Pencil } from 'lucide-react';
+import { Plus, Package, Search, Pencil, Trash2 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { Card, CardHeader, CardBody } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -12,7 +12,11 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { useProducts } from '../../hooks/useProducts';
 import { formatCurrency } from '../../utils/currencyUtils';
 
-const categoryOptions = [
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { useAuth } from '../../contexts/AuthContext';
+
+const defaultCategories = [
     { value: 'cake', label: 'Bolo' },
     { value: 'sweet', label: 'Doce' },
     { value: 'salty', label: 'Salgado' },
@@ -30,20 +34,76 @@ const pageStyles = {
 };
 
 export const ProductsPage = () => {
-    const { products, loading, createProduct, updateProduct, loadMore, hasMore, refreshProducts } = useProducts();
+    const { products, loading, createProduct, updateProduct, deleteProduct, loadMore, hasMore, refreshProducts } = useProducts();
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [saving, setSaving] = useState(false);
+
+    // Delete states
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '', description: '', category: '', price: '', cost: ''
     });
+
+    const { establishment, setEstablishment } = useAuth();
+    const customCategories = establishment?.categories?.map(c => ({ value: c, label: c })) || [];
+    const allCategoryOptions = [...defaultCategories, ...customCategories];
+
+    const handleAddCategory = async () => {
+        const newCategory = prompt('Nome da nova categoria:');
+        if (!newCategory) return;
+
+        if (allCategoryOptions.some(c => c.label.toLowerCase() === newCategory.toLowerCase())) {
+            alert('Categoria já existe!');
+            return;
+        }
+
+        try {
+            const establishmentRef = doc(db, 'establishments', establishment.id);
+            await updateDoc(establishmentRef, {
+                categories: arrayUnion(newCategory)
+            });
+
+            setEstablishment(prev => ({
+                ...prev,
+                categories: [...(prev.categories || []), newCategory]
+            }));
+
+            setFormData(prev => ({ ...prev, category: newCategory }));
+        } catch (error) {
+            console.error("Error adding category:", error);
+            alert("Erro ao salvar categoria.");
+        }
+    };
 
     // Client-side filter for now (since products list is paginated)
     const filteredProducts = products.filter(p =>
         p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.category?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleDeleteClick = (product) => {
+        setProductToDelete(product);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!productToDelete) return;
+        setDeleting(true);
+        try {
+            await deleteProduct(productToDelete.id);
+            setShowDeleteModal(false);
+            setProductToDelete(null);
+        } catch (error) {
+            alert('Erro ao excluir: ' + error.message);
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     const handleEditClick = (product) => {
         setEditingProduct(product);
@@ -117,31 +177,20 @@ export const ProductsPage = () => {
                                     subtitle={product.category}
                                     iconVariant="warning"
                                     action={
-                                        <button
-                                            onClick={() => handleEditClick(product)}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                padding: 'var(--spacing-xs)',
-                                                borderRadius: 'var(--radius-md)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                color: 'var(--color-text-secondary)',
-                                                transition: 'all 0.2s'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.backgroundColor = 'var(--color-primary-light)';
-                                                e.currentTarget.style.color = 'var(--color-primary)';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.backgroundColor = 'transparent';
-                                                e.currentTarget.style.color = 'var(--color-text-secondary)';
-                                            }}
-                                        >
-                                            <Pencil size={18} />
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            <button
+                                                onClick={() => handleEditClick(product)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '4px', color: 'var(--color-text-secondary)' }}
+                                            >
+                                                <Pencil size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteClick(product)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '4px', color: 'var(--color-danger)' }}
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
                                     }
                                 />
                                 <CardBody>
@@ -205,12 +254,34 @@ export const ProductsPage = () => {
                     </div>
                 )}
 
+                <Modal
+                    isOpen={showDeleteModal}
+                    onClose={() => setShowDeleteModal(false)}
+                    title="Confirmar Exclusão"
+                    footer={<>
+                        <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancelar</Button>
+                        <Button variant="primary" onClick={confirmDelete} loading={deleting} style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                            Excluir
+                        </Button>
+                    </>}
+                >
+                    <p>Tem certeza que deseja excluir <strong>{productToDelete?.name}</strong>?</p>
+                    <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '8px' }}>Esta ação não poderá ser desfeita.</p>
+                </Modal>
+
                 <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingProduct ? "Editar Produto" : "Novo Produto"}
                     footer={<><Button variant="outline" onClick={() => setShowModal(false)}>Cancelar</Button>
                         <Button variant="primary" onClick={handleSubmit} loading={saving}>Salvar</Button></>}>
                     <form style={pageStyles.form} onSubmit={handleSubmit}>
                         <Input type="text" label="Nome" placeholder="Nome do produto" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
-                        <Select label="Categoria" options={categoryOptions} value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} required />
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                                <Select label="Categoria" options={allCategoryOptions} value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} required />
+                            </div>
+                            <Button type="button" variant="outline" onClick={handleAddCategory} style={{ marginBottom: '16px', padding: '10px' }}>
+                                <Plus size={20} />
+                            </Button>
+                        </div>
                         <TextArea label="Descrição (opcional)" placeholder="Descrição do produto" rows={3} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                         <div style={pageStyles.priceRow}>
                             <Input type="number" label="Preço (R$)" placeholder="0.00" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} required />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { Input } from '../../components/common/Input';
@@ -68,13 +68,19 @@ const pageStyles = {
 
 export const LoginPage = () => {
     const navigate = useNavigate();
-    const { signIn } = useAuth();
+    const { signIn, user } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            navigate('/');
+        }
+    }, [user, navigate]);
 
     const handleChange = (e) => {
         setFormData({
@@ -91,10 +97,8 @@ export const LoginPage = () => {
 
         try {
             await signIn(formData.email, formData.password);
-            navigate('/');
         } catch (err) {
             setError(err.message || 'Erro ao fazer login');
-        } finally {
             setLoading(false);
         }
     };

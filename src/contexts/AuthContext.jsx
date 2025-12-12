@@ -32,9 +32,17 @@ export const AuthProvider = ({ children }) => {
                     // Get establishment data for this user
                     // Assuming 1 user = 1 establishment for now (or stored in user profile)
                     // We need to find the establishment where ownerId == firebaseUser.uid
-                    const establishments = await firestoreService.getDocuments('establishments', [
+                    // 1. Try finding by owner
+                    let establishments = await firestoreService.getDocuments('establishments', [
                         where('ownerId', '==', firebaseUser.uid)
                     ]);
+
+                    // 2. If not owner, try finding by allowedUsers (team member)
+                    if (establishments.length === 0) {
+                        establishments = await firestoreService.getDocuments('establishments', [
+                            where('allowedUsers', 'array-contains', firebaseUser.uid)
+                        ]);
+                    }
 
                     let userEstablishment = establishments[0] || null;
 
@@ -120,6 +128,8 @@ export const AuthProvider = ({ children }) => {
     const signOut = async () => {
         try {
             await firebaseSignOut(auth);
+            setUser(null);
+            setEstablishment(null);
         } catch (error) {
             console.error('Error signing out:', error);
             throw error;
@@ -145,6 +155,7 @@ export const AuthProvider = ({ children }) => {
     const value = {
         user,
         establishment,
+        setEstablishment,
         loading,
         signIn,
         signUp,
