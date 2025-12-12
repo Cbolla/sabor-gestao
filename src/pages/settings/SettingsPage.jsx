@@ -61,8 +61,11 @@ export const SettingsPage = () => {
             alert('Logo atualizada com sucesso!');
             setPreviewUrl(null);
         } catch (error) {
-            console.error('Erro ao atualizar logo:', error);
-            alert('Erro: ' + error.message);
+            console.error('Erro detalhado ao atualizar logo:', error);
+            console.error('Code:', error.code);
+            console.error('Message:', error.message);
+            console.error('Establishment ID:', establishment?.id);
+            alert(`Erro ao salvar imagem: ${error.message} (Código: ${error.code || 'N/A'})`);
         } finally {
             setUploadingLogo(false);
         }

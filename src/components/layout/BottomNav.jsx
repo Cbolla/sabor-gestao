@@ -13,7 +13,8 @@ import {
     Truck,
     ArrowRight,
     ArrowLeft,
-    Settings
+    Settings,
+    ClipboardList
 } from 'lucide-react';
 import './BottomNav.css';
 
@@ -30,6 +31,7 @@ export const BottomNav = () => {
     ];
 
     const secondaryItems = [
+        { path: '/production', icon: <ClipboardList size={24} />, label: 'Produção' },
         { path: '/kitchen', icon: <ChefHat size={24} />, label: 'Cozinha' },
         { path: '/deliveries', icon: <Truck size={24} />, label: 'Entregas' },
         { path: '/reports', icon: <TrendingUp size={24} />, label: 'Relatórios' },
